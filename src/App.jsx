@@ -34,13 +34,31 @@ useEffect(() => {
   if (!roomId) return;
 
   async function cargarSala() {
-    const { data } = await supabase
+    let { data } = await supabase
       .from("rooms")
       .select("*")
       .eq("id", roomId)
       .single();
 
-    if (!data) return;
+    if (!data) {
+      const { data: nuevaSala, error } = await supabase
+        .from("rooms")
+        .insert({
+          id: roomId,
+          mode: "focus",
+          duration: 60,
+          running: false,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      data = nuevaSala;
+    }
 
     setRunning(data.running);
     setMode(data.mode);
