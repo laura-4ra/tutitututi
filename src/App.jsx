@@ -15,6 +15,7 @@ function App() {
   console.log("Sala:", roomId);
 
   const [running, setRunning] = useState(false);
+  const [startedAt, setStartedAt] = useState(null);
 
   const [focusDuration, setFocusDuration] = useState(60);
   const [breakDuration] = useState(10);
@@ -64,6 +65,7 @@ useEffect(() => {
     setRunning(data.running);
     setMode(data.mode);
     setFocusDuration(data.duration);
+    setStartedAt(data.started_at);
 
     console.log("DATOS DE LA SALA:", data);
 
@@ -99,6 +101,7 @@ useEffect(() => {
         setRunning(payload.new.running);
         setMode(payload.new.mode);
         setFocusDuration(payload.new.duration);
+        setStartedAt(payload.new.started_at);
 
        if (payload.new.running && payload.new.started_at) {
         const inicio = new Date(payload.new.started_at).getTime();
@@ -122,67 +125,82 @@ useEffect(() => {
 }, [roomId]);
 
   useEffect(() => {
-    if (!running) return;
+    if (!running || !startedAt) return;
 
     const interval = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
+      const ahora = Date.now();
+      const inicio = new Date(startedAt).getTime();
 
-          setRunning(false);
+      const transcurridos = Math.floor((ahora - inicio) / 1000);
 
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
+      const total =
+        mode === "focus"
+          ? focusDuration * 60
+          : breakDuration * 60;
 
-          if (Notification.permission === "granted") {
-            new Notification(
-              mode === "focus"
-                ? "Focus terminado"
-                : "Tutitututi terminado",
-              {
-                body:
-                  mode === "focus"
-                    ? "🧚🏻‍♀️✨ Es hora de un tutitututi."
-                    : "🚗💨 Vuelta al Focus.",
-              }
-            );
-          }
+      const restante = Math.max(total - transcurridos, 0);
 
-          const nuevoModo = mode === "focus" ? "break" : "focus";
+      setSeconds(restante);
 
-          const nuevoTiempo =
-            nuevoModo === "focus"
-              ? focusDuration * 60
-              : breakDuration * 60;
+      if (restante <= 0) {
+        clearInterval(interval);
 
-          if (roomId) {
-            supabase
-              .from("rooms")
-              .update({
-                mode: nuevoModo,
-                running: false,
-                started_at: null,
-                remaining_seconds: nuevoTiempo,
-              })
-              .eq("id", roomId)
-              .then(({ error }) => {
-                if (error) {
-                  console.error("Error cambiando de modo:", error);
-                }
-              });
-          }
+        setRunning(false);
 
-          setMode(nuevoModo);
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
 
-          return nuevoTiempo;
+        if (Notification.permission === "granted") {
+          new Notification(
+            mode === "focus"
+              ? "Focus terminado"
+              : "Tutitututi terminado",
+            {
+              body:
+                mode === "focus"
+                  ? "🧚🏻‍♀️✨ Es hora de un tutitututi."
+                  : "🚗💨 Vuelta al Focus.",
+            }
+          );
         }
 
-        return prev - 1;
-      });
-    }, 1000);
+        const nuevoModo = mode === "focus" ? "break" : "focus";
+
+        const nuevoTiempo =
+          nuevoModo === "focus"
+            ? focusDuration * 60
+            : breakDuration * 60;
+
+        if (roomId) {
+          supabase
+            .from("rooms")
+            .update({
+              mode: nuevoModo,
+              running: false,
+              started_at: null,
+              remaining_seconds: nuevoTiempo,
+            })
+            .eq("id", roomId)
+            .then(({ error }) => {
+              if (error) {
+                console.error("Error cambiando de modo:", error);
+              }
+            });
+        }
+
+        setMode(nuevoModo);
+        setStartedAt(null);
+      }
+    }, 250);
 
     return () => clearInterval(interval);
-  }, [running, mode, focusDuration, breakDuration]);
+  }, [
+    running,
+    startedAt,
+    mode,
+    focusDuration,
+    breakDuration,
+  ]);
 
   async function toggleRunning() {
     if (!roomId) {
