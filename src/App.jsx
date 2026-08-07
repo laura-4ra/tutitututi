@@ -190,9 +190,25 @@ useEffect(() => {
   };
 
   if (nuevoEstado) {
-    update.started_at = new Date().toISOString();
+    // REANUDAR
+    update.started_at = new Date(
+      Date.now() - (
+        mode === "focus"
+          ? focusDuration * 60 - seconds
+          : breakDuration * 60 - seconds
+      ) * 1000
+    ).toISOString();
   } else {
-    update.started_at = null;
+    // PAUSAR
+    const tiempoRestante = seconds;
+
+    update.started_at = new Date(
+      Date.now() - (
+        (mode === "focus"
+          ? focusDuration * 60
+          : breakDuration * 60) - tiempoRestante
+      ) * 1000
+    ).toISOString();
   }
 
   console.log(update);
