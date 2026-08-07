@@ -148,13 +148,33 @@ useEffect(() => {
             );
           }
 
-          if (mode === "focus") {
-            setMode("break");
-            return breakDuration * 60;
-          } else {
-            setMode("focus");
-            return focusDuration * 60;
+          const nuevoModo = mode === "focus" ? "break" : "focus";
+
+          const nuevoTiempo =
+            nuevoModo === "focus"
+              ? focusDuration * 60
+              : breakDuration * 60;
+
+          if (roomId) {
+            supabase
+              .from("rooms")
+              .update({
+                mode: nuevoModo,
+                running: false,
+                started_at: null,
+                remaining_seconds: nuevoTiempo,
+              })
+              .eq("id", roomId)
+              .then(({ error }) => {
+                if (error) {
+                  console.error("Error cambiando de modo:", error);
+                }
+              });
           }
+
+          setMode(nuevoModo);
+
+          return nuevoTiempo;
         }
 
         return prev - 1;
