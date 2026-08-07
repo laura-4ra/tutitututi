@@ -48,6 +48,7 @@ useEffect(() => {
           mode: "focus",
           duration: 60,
           running: false,
+          remaining_seconds: 3600,
         })
         .select()
         .single();
@@ -72,18 +73,11 @@ useEffect(() => {
 
       const transcurridos = Math.floor((ahora - inicio) / 1000);
 
-      const total =
-        data.mode === "focus"
-          ? data.duration * 60
-          : breakDuration * 60;
-
-      setSeconds(Math.max(total - transcurridos, 0));
+      setSeconds(
+        Math.max(data.remaining_seconds - transcurridos, 0)
+      );
     } else {
-      if (data.mode === "focus") {
-        setSeconds(data.duration * 60);
-      } else {
-        setSeconds(breakDuration * 60);
-      }
+      setSeconds(data.remaining_seconds);
     }
   }
 
@@ -112,18 +106,11 @@ useEffect(() => {
 
         const transcurridos = Math.floor((ahora - inicio) / 1000);
 
-        const total =
-          payload.new.mode === "focus"
-            ? payload.new.duration * 60
-            : breakDuration * 60;
-
-        setSeconds(Math.max(total - transcurridos, 0));
+        setSeconds(
+          Math.max(payload.new.remaining_seconds - transcurridos, 0)
+        );
       } else {
-        if (payload.new.mode === "focus") {
-          setSeconds(payload.new.duration * 60);
-        } else {
-          setSeconds(breakDuration * 60);
-        }
+        setSeconds(payload.new.remaining_seconds);
       }
       }
     )
@@ -178,53 +165,52 @@ useEffect(() => {
   }, [running, mode, focusDuration, breakDuration]);
 
   async function toggleRunning() {
-  if (!roomId) {
-    setRunning(!running);
-    return;
-  }
+    if (!roomId) {
+      setRunning(!running);
+      return;
+    }
 
-  const nuevoEstado = !running;
+    const nuevoEstado = !running;
 
-  const update = {
-    running: nuevoEstado,
-  };
-
-  if (nuevoEstado) {
-    // REANUDAR
-    update.started_at = new Date(
-      Date.now() - (
-        mode === "focus"
-          ? focusDuration * 60 - seconds
-          : breakDuration * 60 - seconds
-      ) * 1000
-    ).toISOString();
-  } else {
     // PAUSAR
-    const tiempoRestante = seconds;
+    if (!nuevoEstado) {
+      const tiempoRestante = seconds;
 
-    update.started_at = new Date(
-      Date.now() - (
-        (mode === "focus"
-          ? focusDuration * 60
-          : breakDuration * 60) - tiempoRestante
-      ) * 1000
-    ).toISOString();
+      const { error } = await supabase
+        .from("rooms")
+        .update({
+          running: false,
+          started_at: null,
+          remaining_seconds: tiempoRestante,
+        })
+        .eq("id", roomId);
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      setRunning(false);
+      return;
+    }
+
+    // REANUDAR
+    const { error } = await supabase
+      .from("rooms")
+      .update({
+        running: true,
+        started_at: new Date().toISOString(),
+        remaining_seconds: seconds,
+      })
+      .eq("id", roomId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setRunning(true);
   }
-
-  console.log(update);
-
-  const { error } = await supabase
-    .from("rooms")
-    .update(update)
-    .eq("id", roomId);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  setRunning(nuevoEstado);
-}
 
   function resetTimer() {
     setSeconds(
