@@ -226,14 +226,27 @@ useEffect(() => {
     setRunning(false);
   }
 
-  function changeDuration(minutes) {
-    setFocusDuration(minutes);
+ async function changeDuration(minutes) {
+  setFocusDuration(minutes);
 
-    if (mode === "focus") {
-      setSeconds(minutes * 60);
-      setRunning(false);
+  if (mode === "focus") {
+    setSeconds(minutes * 60);
+    setRunning(false);
+  }
+
+  if (roomId) {
+    const { error } = await supabase
+      .from("rooms")
+      .update({
+        duration: minutes,
+      })
+      .eq("id", roomId);
+
+    if (error) {
+      console.error("Error guardando duración:", error);
     }
   }
+}
 
   return (
     <div
