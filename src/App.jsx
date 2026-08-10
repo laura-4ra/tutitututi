@@ -260,11 +260,29 @@ useEffect(() => {
     setRunning(false);
   }
 
-  function skipBreak() {
-    setMode("focus");
-    setSeconds(focusDuration * 60);
-    setRunning(false);
+  async function skipBreak() {
+  const nuevoTiempo = focusDuration * 60;
+
+  setMode("focus");
+  setSeconds(nuevoTiempo);
+  setRunning(false);
+
+  if (roomId) {
+    const { error } = await supabase
+      .from("rooms")
+      .update({
+        mode: "focus",
+        running: false,
+        started_at: null,
+        remaining_seconds: nuevoTiempo,
+      })
+      .eq("id", roomId);
+
+    if (error) {
+      console.error("Error saltando descanso:", error);
+    }
   }
+}
 
  async function changeDuration(minutes) {
   setFocusDuration(minutes);
