@@ -285,10 +285,12 @@ useEffect(() => {
 }
 
  async function changeDuration(minutes) {
+  const nuevoTiempo = minutes * 60;
+
   setFocusDuration(minutes);
 
   if (mode === "focus") {
-    setSeconds(minutes * 60);
+    setSeconds(nuevoTiempo);
     setRunning(false);
   }
 
@@ -297,6 +299,12 @@ useEffect(() => {
       .from("rooms")
       .update({
         duration: minutes,
+        remaining_seconds:
+          mode === "focus"
+            ? nuevoTiempo
+            : breakDuration * 60,
+        running: false,
+        started_at: null,
       })
       .eq("id", roomId);
 
